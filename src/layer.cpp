@@ -76,6 +76,26 @@ int Layer::forward_inplace(Mat& /*bottom_top_blob*/) const
     return -1;
 }
 
+int Layer::forward_opencl(cl_command_queue /*queue*/, const std::vector<Mat>& /*bottom_blobs*/, std::vector<Mat>& /*top_blobs*/) const
+{
+    return -1;
+}
+
+int Layer::forward_opencl(cl_command_queue /*queue*/, const Mat& /*bottom_blob*/, Mat& /*top_blob*/) const
+{
+    return -1;
+}
+
+int Layer::forward_opencl_inplace(cl_command_queue /*queue*/, std::vector<Mat>& /*bottom_top_blobs*/) const
+{
+    return -1;
+}
+
+int Layer::forward_opencl_inplace(cl_command_queue /*queue*/, Mat& /*bottom_top_blob*/) const
+{
+    return -1;
+}
+
 #include "layer_declaration.h"
 
 static const layer_registry_entry layer_registry[] =

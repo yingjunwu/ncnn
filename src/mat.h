@@ -21,6 +21,10 @@
 #include <arm_neon.h>
 #endif
 
+#include "gpu.h"
+// opencl
+#include <CL/cl.h>
+
 namespace ncnn {
 
 // the three dimension matrix
@@ -150,6 +154,20 @@ public:
     int c;
 
     size_t cstep;
+
+    // flag
+    // 0 = host
+    // 1 = device
+    // 2 = sync
+    int ss;
+
+    // opencl memory handle
+    cl_mem cldata;
+
+    Mat clone(cl_command_queue queue) const;
+    void sync_to_cpu(cl_command_queue queue);
+    void sync_to_gpu(cl_command_queue queue);
+    void sync(cl_command_queue queue);
 };
 
 // misc function
@@ -207,6 +225,20 @@ static inline void fastFree(void* ptr)
     }
 }
 
+static inline cl_mem openclMalloc(size_t size)
+{
+    cl_int error = 0;
+    cl_mem data = clCreateBuffer(get_gpu_context(), CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, size, NULL, &error);
+    if (error != CL_SUCCESS)
+        return 0;
+    return data;
+}
+
+static inline void openclFree(cl_mem ptr)
+{
+    clReleaseMemObject(ptr);
+}
+
 // exchange-add operation for atomic operations on reference counters
 #if defined __INTEL_COMPILER && !(defined WIN32 || defined _WIN32)
 // atomic increment on the linux version of the Intel(tm) compiler
@@ -234,30 +266,30 @@ static inline void NCNN_XADD(int* addr, int delta) { int tmp = *addr; *addr += d
 #endif
 
 inline Mat::Mat()
-    : data(0), refcount(0), elemsize(0), dims(0), w(0), h(0), c(0), cstep(0)
+    : data(0), refcount(0), elemsize(0), dims(0), w(0), h(0), c(0), cstep(0), cldata(0)
 {
 }
 
 inline Mat::Mat(int _w, size_t _elemsize)
-    : data(0), refcount(0), dims(0)
+    : data(0), refcount(0), dims(0), cldata(0)
 {
     create(_w, _elemsize);
 }
 
 inline Mat::Mat(int _w, int _h, size_t _elemsize)
-    : data(0), refcount(0), dims(0)
+    : data(0), refcount(0), dims(0), cldata(0)
 {
     create(_w, _h, _elemsize);
 }
 
 inline Mat::Mat(int _w, int _h, int _c, size_t _elemsize)
-    : data(0), refcount(0), dims(0)
+    : data(0), refcount(0), dims(0), cldata(0)
 {
     create(_w, _h, _c, _elemsize);
 }
 
 inline Mat::Mat(const Mat& m)
-    : data(m.data), refcount(m.refcount), elemsize(m.elemsize), dims(m.dims)
+    : data(m.data), refcount(m.refcount), elemsize(m.elemsize), dims(m.dims), cldata(m.cldata)
 {
     if (refcount)
         NCNN_XADD(refcount, 1);
@@ -270,7 +302,7 @@ inline Mat::Mat(const Mat& m)
 }
 
 inline Mat::Mat(int _w, void* _data, size_t _elemsize)
-    : data(_data), refcount(0), elemsize(_elemsize), dims(1)
+    : data(_data), refcount(0), elemsize(_elemsize), dims(1), cldata(0)
 {
     w = _w;
     h = 1;
@@ -280,7 +312,7 @@ inline Mat::Mat(int _w, void* _data, size_t _elemsize)
 }
 
 inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize)
-    : data(_data), refcount(0), elemsize(_elemsize), dims(2)
+    : data(_data), refcount(0), elemsize(_elemsize), dims(2), cldata(0)
 {
     w = _w;
     h = _h;
@@ -290,7 +322,7 @@ inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize)
 }
 
 inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize)
-    : data(_data), refcount(0), elemsize(_elemsize), dims(3)
+    : data(_data), refcount(0), elemsize(_elemsize), dims(3), cldata(0)
 {
     w = _w;
     h = _h;
@@ -324,6 +356,8 @@ inline Mat& Mat::operator=(const Mat& m)
     c = m.c;
 
     cstep = m.cstep;
+
+    cldata = m.cldata;
 
     return *this;
 }
@@ -544,6 +578,9 @@ inline void Mat::create(int _w, size_t _elemsize)
         data = fastMalloc(totalsize + (int)sizeof(*refcount));
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
+
+        // NOTE opencl
+        cldata = openclMalloc(totalsize);
     }
 }
 
@@ -569,6 +606,9 @@ inline void Mat::create(int _w, int _h, size_t _elemsize)
         data = fastMalloc(totalsize + (int)sizeof(*refcount));
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
+
+        // NOTE opencl
+        cldata = openclMalloc(totalsize);
     }
 }
 
@@ -594,6 +634,9 @@ inline void Mat::create(int _w, int _h, int _c, size_t _elemsize)
         data = fastMalloc(totalsize + (int)sizeof(*refcount));
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
+
+        // NOTE opencl
+        cldata = openclMalloc(totalsize);
     }
 }
 
@@ -606,7 +649,12 @@ inline void Mat::addref()
 inline void Mat::release()
 {
     if (refcount && NCNN_XADD(refcount, -1) == 1)
+    {
         fastFree(data);
+
+        // NOTE opencl
+        openclFree(cldata);
+    }
 
     data = 0;
 
@@ -624,7 +672,8 @@ inline void Mat::release()
 
 inline bool Mat::empty() const
 {
-    return data == 0 || total() == 0;
+    // NOTE opencl
+    return (data == 0 && cldata == 0) || total() == 0;
 }
 
 inline size_t Mat::total() const
@@ -684,6 +733,80 @@ inline float& Mat::operator[](int i)
 inline const float& Mat::operator[](int i) const
 {
     return ((const float*)data)[i];
+}
+
+inline Mat Mat::clone(cl_command_queue queue) const
+{
+    if (empty())
+        return Mat();
+
+    Mat m;
+    if (dims == 1)
+        m.create(w, elemsize);
+    else if (dims == 2)
+        m.create(w, h, elemsize);
+    else if (dims == 3)
+        m.create(w, h, c, elemsize);
+
+    if (total() > 0)
+    {
+        memcpy(m.data, data, total() * elemsize);
+
+        // NOTE opencl
+        clEnqueueCopyBuffer(queue, m.cldata, cldata, 0, 0, total() * elemsize, 0, NULL, NULL);
+    }
+
+    return m;
+}
+
+inline void Mat::sync_to_cpu(cl_command_queue queue)
+{
+    if (ss != 1)
+        return;
+
+    size_t totalsize = total() * elemsize;
+
+    void* mapped = clEnqueueMapBuffer(queue, cldata, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, totalsize, 0, NULL, NULL, NULL);
+
+    memcpy(data, mapped, totalsize);
+
+    clEnqueueUnmapMemObject(queue, cldata, mapped, 0, NULL, NULL);
+
+    clFinish(queue);
+}
+
+inline void Mat::sync_to_gpu(cl_command_queue queue)
+{
+    if (ss != 0)
+        return;
+
+    size_t totalsize = total() * elemsize;
+
+    void* mapped = clEnqueueMapBuffer(queue, cldata, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, totalsize, 0, NULL, NULL, NULL);
+
+    memcpy(mapped, data, totalsize);
+
+    clEnqueueUnmapMemObject(queue, cldata, mapped, 0, NULL, NULL);
+
+    clFinish(queue);
+}
+
+inline void Mat::sync(cl_command_queue queue)
+{
+    if (ss == 2)
+        return;
+
+    // upload
+    if (ss == 0)
+    {
+        sync_to_gpu(queue);
+    }
+
+    // download
+    if (ss == 1)
+    {
+        sync_to_cpu(queue);
+    }
 }
 
 } // namespace ncnn

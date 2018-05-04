@@ -34,6 +34,8 @@ if(NCNN_OPENMP)
     endif()
 endif()
 
+find_package(OpenCL)
+
 if(WIN32)
     add_definitions(-D_SCL_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE)
 else()

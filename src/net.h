@@ -22,6 +22,9 @@
 #include "mat.h"
 #include "platform.h"
 
+// opencl
+#include <CL/cl.h>
+
 namespace ncnn {
 
 class Extractor;
@@ -89,6 +92,10 @@ protected:
     Layer* create_custom_layer(int index);
     int forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightmode) const;
 
+    // NOTE opencl
+    // TODO merge
+    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightmode, cl_command_queue queue, bool opencl_mode) const;
+
 protected:
     std::vector<Blob> blobs;
     std::vector<Layer*> layers;
@@ -99,6 +106,8 @@ protected:
 class Extractor
 {
 public:
+    ~Extractor();
+
     // enable light mode
     // intermediate blob will be recycled when enabled
     // enabled by default
@@ -108,6 +117,10 @@ public:
     // this will overwrite the global setting
     // default count is system depended
     void set_num_threads(int num_threads);
+
+    // NOTE opencl
+    // enable opencl
+    void set_opencl_mode(bool enable);
 
 #if NCNN_STRING
     // set input by blob name
@@ -136,6 +149,10 @@ private:
     std::vector<Mat> blob_mats;
     bool lightmode;
     int num_threads;
+
+    // NOTE opencl
+    bool opencl_mode;
+    cl_command_queue queue;
 };
 
 } // namespace ncnn
