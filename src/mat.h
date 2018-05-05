@@ -16,6 +16,7 @@
 #define NCNN_MAT_H
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #if __ARM_NEON
 #include <arm_neon.h>
@@ -155,6 +156,7 @@ public:
 
     size_t cstep;
 
+    // NOTE opencl
     // flag
     // 0 = host
     // 1 = device
@@ -167,7 +169,6 @@ public:
     Mat clone(cl_command_queue queue) const;
     void sync_to_cpu(cl_command_queue queue);
     void sync_to_gpu(cl_command_queue queue);
-    void sync(cl_command_queue queue);
 };
 
 // misc function
@@ -230,7 +231,11 @@ static inline cl_mem openclMalloc(size_t size)
     cl_int error = 0;
     cl_mem data = clCreateBuffer(get_gpu_context(), CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, size, NULL, &error);
     if (error != CL_SUCCESS)
+    {
+        fprintf(stderr, "clCreateBuffer failed %d\n", error);
         return 0;
+    }
+
     return data;
 }
 
@@ -266,30 +271,30 @@ static inline void NCNN_XADD(int* addr, int delta) { int tmp = *addr; *addr += d
 #endif
 
 inline Mat::Mat()
-    : data(0), refcount(0), elemsize(0), dims(0), w(0), h(0), c(0), cstep(0), cldata(0)
+    : data(0), refcount(0), elemsize(0), dims(0), w(0), h(0), c(0), cstep(0), ss(0), cldata(0)
 {
 }
 
 inline Mat::Mat(int _w, size_t _elemsize)
-    : data(0), refcount(0), dims(0), cldata(0)
+    : data(0), refcount(0), dims(0), ss(0), cldata(0)
 {
     create(_w, _elemsize);
 }
 
 inline Mat::Mat(int _w, int _h, size_t _elemsize)
-    : data(0), refcount(0), dims(0), cldata(0)
+    : data(0), refcount(0), dims(0), ss(0), cldata(0)
 {
     create(_w, _h, _elemsize);
 }
 
 inline Mat::Mat(int _w, int _h, int _c, size_t _elemsize)
-    : data(0), refcount(0), dims(0), cldata(0)
+    : data(0), refcount(0), dims(0), ss(0), cldata(0)
 {
     create(_w, _h, _c, _elemsize);
 }
 
 inline Mat::Mat(const Mat& m)
-    : data(m.data), refcount(m.refcount), elemsize(m.elemsize), dims(m.dims), cldata(m.cldata)
+    : data(m.data), refcount(m.refcount), elemsize(m.elemsize), dims(m.dims), ss(m.ss), cldata(m.cldata)
 {
     if (refcount)
         NCNN_XADD(refcount, 1);
@@ -302,7 +307,7 @@ inline Mat::Mat(const Mat& m)
 }
 
 inline Mat::Mat(int _w, void* _data, size_t _elemsize)
-    : data(_data), refcount(0), elemsize(_elemsize), dims(1), cldata(0)
+    : data(_data), refcount(0), elemsize(_elemsize), dims(1), ss(0), cldata(0)
 {
     w = _w;
     h = 1;
@@ -312,7 +317,7 @@ inline Mat::Mat(int _w, void* _data, size_t _elemsize)
 }
 
 inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize)
-    : data(_data), refcount(0), elemsize(_elemsize), dims(2), cldata(0)
+    : data(_data), refcount(0), elemsize(_elemsize), dims(2), ss(0), cldata(0)
 {
     w = _w;
     h = _h;
@@ -322,7 +327,7 @@ inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize)
 }
 
 inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize)
-    : data(_data), refcount(0), elemsize(_elemsize), dims(3), cldata(0)
+    : data(_data), refcount(0), elemsize(_elemsize), dims(3), ss(0), cldata(0)
 {
     w = _w;
     h = _h;
@@ -357,6 +362,7 @@ inline Mat& Mat::operator=(const Mat& m)
 
     cstep = m.cstep;
 
+    ss = m.ss;
     cldata = m.cldata;
 
     return *this;
@@ -580,6 +586,7 @@ inline void Mat::create(int _w, size_t _elemsize)
         *refcount = 1;
 
         // NOTE opencl
+        ss = 0;
         cldata = openclMalloc(totalsize);
     }
 }
@@ -608,6 +615,7 @@ inline void Mat::create(int _w, int _h, size_t _elemsize)
         *refcount = 1;
 
         // NOTE opencl
+        ss = 0;
         cldata = openclMalloc(totalsize);
     }
 }
@@ -636,6 +644,7 @@ inline void Mat::create(int _w, int _h, int _c, size_t _elemsize)
         *refcount = 1;
 
         // NOTE opencl
+        ss = 0;
         cldata = openclMalloc(totalsize);
     }
 }
@@ -753,7 +762,13 @@ inline Mat Mat::clone(cl_command_queue queue) const
         memcpy(m.data, data, total() * elemsize);
 
         // NOTE opencl
-        clEnqueueCopyBuffer(queue, m.cldata, cldata, 0, 0, total() * elemsize, 0, NULL, NULL);
+        cl_int error;
+
+        error = clEnqueueCopyBuffer(queue, m.cldata, cldata, 0, 0, total() * elemsize, 0, NULL, NULL);
+        if (error != CL_SUCCESS)
+        {
+            fprintf(stderr, "sync_to_cpu clEnqueueUnmapMemObject failed %d\n", error);
+        }
     }
 
     return m;
@@ -764,15 +779,28 @@ inline void Mat::sync_to_cpu(cl_command_queue queue)
     if (ss != 1)
         return;
 
+    cl_int error;
+
     size_t totalsize = total() * elemsize;
 
-    void* mapped = clEnqueueMapBuffer(queue, cldata, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, totalsize, 0, NULL, NULL, NULL);
+    void* mapped = clEnqueueMapBuffer(queue, cldata, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, totalsize, 0, NULL, NULL, &error);
+    if (error != CL_SUCCESS)
+    {
+        fprintf(stderr, "sync_to_cpu clEnqueueMapBuffer failed %d %p\n", error, cldata);
+        abort();
+    }
 
     memcpy(data, mapped, totalsize);
 
-    clEnqueueUnmapMemObject(queue, cldata, mapped, 0, NULL, NULL);
+    error = clEnqueueUnmapMemObject(queue, cldata, mapped, 0, NULL, NULL);
+    if (error != CL_SUCCESS)
+    {
+        fprintf(stderr, "sync_to_cpu clEnqueueUnmapMemObject failed %d\n", error);
+    }
 
     clFinish(queue);
+
+    ss = 2;
 }
 
 inline void Mat::sync_to_gpu(cl_command_queue queue)
@@ -780,33 +808,27 @@ inline void Mat::sync_to_gpu(cl_command_queue queue)
     if (ss != 0)
         return;
 
+    cl_int error;
+
     size_t totalsize = total() * elemsize;
 
-    void* mapped = clEnqueueMapBuffer(queue, cldata, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, totalsize, 0, NULL, NULL, NULL);
+    void* mapped = clEnqueueMapBuffer(queue, cldata, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, totalsize, 0, NULL, NULL, &error);
+    if (error != CL_SUCCESS)
+    {
+        fprintf(stderr, "sync_to_gpu clEnqueueMapBuffer failed %d\n", error);
+    }
 
     memcpy(mapped, data, totalsize);
 
-    clEnqueueUnmapMemObject(queue, cldata, mapped, 0, NULL, NULL);
+    error = clEnqueueUnmapMemObject(queue, cldata, mapped, 0, NULL, NULL);
+    if (error != CL_SUCCESS)
+    {
+        fprintf(stderr, "sync_to_gpu clEnqueueUnmapMemObject failed %d\n", error);
+    }
 
     clFinish(queue);
-}
 
-inline void Mat::sync(cl_command_queue queue)
-{
-    if (ss == 2)
-        return;
-
-    // upload
-    if (ss == 0)
-    {
-        sync_to_gpu(queue);
-    }
-
-    // download
-    if (ss == 1)
-    {
-        sync_to_cpu(queue);
-    }
+    ss = 2;
 }
 
 } // namespace ncnn

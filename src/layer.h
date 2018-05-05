@@ -23,11 +23,9 @@
 #include "paramdict.h"
 #include "platform.h"
 
-// opencl
-#include <CL/cl.h>
-
 namespace ncnn {
 
+class Queue;
 class Layer
 {
 public:
@@ -65,13 +63,16 @@ public:
     virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs) const;
     virtual int forward_inplace(Mat& bottom_top_blob) const;
 
-    // implement opencl inference
-    virtual int forward_opencl(cl_command_queue queue, const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const;
-    virtual int forward_opencl(cl_command_queue queue, const Mat& bottom_blob, Mat& top_blob) const;
+    // NOTE opencl
+    // implement inference
+    // return 0 if success
+    virtual int forward(Queue& queue, const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const;
+    virtual int forward(Queue& queue, const Mat& bottom_blob, Mat& top_blob) const;
 
-    // implement opencl inplace inference
-    virtual int forward_opencl_inplace(cl_command_queue queue, std::vector<Mat>& bottom_top_blobs) const;
-    virtual int forward_opencl_inplace(cl_command_queue queue, Mat& bottom_top_blob) const;
+    // implement inplace inference
+    // return 0 if success
+    virtual int forward_inplace(Queue& queue, std::vector<Mat>& bottom_top_blobs) const;
+    virtual int forward_inplace(Queue& queue, Mat& bottom_top_blob) const;
 
 public:
 #if NCNN_STRING

@@ -18,12 +18,10 @@
 #include <stdio.h>
 #include <vector>
 #include "blob.h"
+#include "gpu.h"
 #include "layer.h"
 #include "mat.h"
 #include "platform.h"
-
-// opencl
-#include <CL/cl.h>
 
 namespace ncnn {
 
@@ -94,7 +92,7 @@ protected:
 
     // NOTE opencl
     // TODO merge
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightmode, cl_command_queue queue, bool opencl_mode) const;
+    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightmode, Queue& queue, bool opencl_mode) const;
 
 protected:
     std::vector<Blob> blobs;
@@ -106,8 +104,6 @@ protected:
 class Extractor
 {
 public:
-    ~Extractor();
-
     // enable light mode
     // intermediate blob will be recycled when enabled
     // enabled by default
@@ -152,7 +148,7 @@ private:
 
     // NOTE opencl
     bool opencl_mode;
-    cl_command_queue queue;
+    Queue queue;
 };
 
 } // namespace ncnn

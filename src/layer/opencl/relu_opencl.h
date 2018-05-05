@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,43 +12,26 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef NCNN_GPU_H
-#define NCNN_GPU_H
+#ifndef LAYER_RELU_OPENCL_H
+#define LAYER_RELU_OPENCL_H
 
-// opencl
-#include <CL/cl.h>
+#include "relu.h"
 
 namespace ncnn {
 
-class Extractor;
-class Queue
+class ReLU_opencl : public ReLU
 {
 public:
-    ~Queue();
+    ReLU_opencl();
 
-    // NOTE opencl
-    operator cl_command_queue()
-    {
-        return clqueue;
-    }
+    virtual int load_param(const ParamDict& pd);
+
+    virtual int forward_inplace(Queue& queue, Mat& bottom_top_blob) const;
 
 private:
-    friend class Extractor;
-    Queue();
-
-    cl_command_queue clqueue;
+    cl_kernel relu;
 };
-
-int init_gpu_device();
-
-cl_device_id get_gpu_device();
-
-cl_context get_gpu_context();
-
-int compile_gpu_kernel();
-
-cl_kernel get_gpu_kernel(const char* name);
 
 } // namespace ncnn
 
-#endif // NCNN_GPU_H
+#endif // LAYER_RELU_OPENCL_H

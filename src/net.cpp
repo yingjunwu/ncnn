@@ -767,11 +767,11 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
     return 0;
 }
 
-int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightmode, cl_command_queue queue, bool opencl_mode) const
+int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightmode, Queue& queue, bool opencl_mode) const
 {
     const Layer* layer = layers[layer_index];
 
-//     fprintf(stderr, "forward_layer %d %s\n", layer_index, layer->name.c_str());
+//     fprintf(stderr, "forward_layer %d %s  %d\n", layer_index, layer->name.c_str(), layer->support_opencl);
 
     if (layer->one_blob_only)
     {
@@ -781,7 +781,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
 
         if (blob_mats[bottom_blob_index].dims == 0)
         {
-            int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, lightmode);
+            int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, lightmode, queue, opencl_mode);
             if (ret != 0)
                 return ret;
         }
@@ -808,22 +808,28 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
             if (lightmode && layer->support_inplace)
             {
                 Mat& bottom_top_blob = bottom_blob;
-                int ret = layer->forward_opencl_inplace(queue, bottom_top_blob);
+                int ret = layer->forward_inplace(queue, bottom_top_blob);
                 if (ret != 0)
                     return ret;
 
                 // store top blob
                 blob_mats[top_blob_index] = bottom_top_blob;
+
+                // NOTE opencl
+                blob_mats[top_blob_index].ss = 1;
             }
             else
             {
                 Mat top_blob;
-                int ret = layer->forward_opencl(queue, bottom_blob, top_blob);
+                int ret = layer->forward(queue, bottom_blob, top_blob);
                 if (ret != 0)
                     return ret;
 
                 // store top blob
                 blob_mats[top_blob_index] = top_blob;
+
+                // NOTE opencl
+                blob_mats[top_blob_index].ss = 1;
             }
         }
         else
@@ -839,6 +845,9 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
 
                 // store top blob
                 blob_mats[top_blob_index] = bottom_top_blob;
+
+                // NOTE opencl
+                blob_mats[top_blob_index].ss = 0;
             }
             else
             {
@@ -849,6 +858,9 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
 
                 // store top blob
                 blob_mats[top_blob_index] = top_blob;
+
+                // NOTE opencl
+                blob_mats[top_blob_index].ss = 0;
             }
         }
 
@@ -864,7 +876,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
 
             if (blob_mats[bottom_blob_index].dims == 0)
             {
-                int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, lightmode);
+                int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, lightmode, queue, opencl_mode);
                 if (ret != 0)
                     return ret;
             }
@@ -895,7 +907,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
             if (lightmode && layer->support_inplace)
             {
                 std::vector<Mat>& bottom_top_blobs = bottom_blobs;
-                int ret = layer->forward_opencl_inplace(queue, bottom_top_blobs);
+                int ret = layer->forward_inplace(queue, bottom_top_blobs);
                 if (ret != 0)
                     return ret;
 
@@ -905,13 +917,16 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
                     int top_blob_index = layer->tops[i];
 
                     blob_mats[top_blob_index] = bottom_top_blobs[i];
+
+                    // NOTE opencl
+                    blob_mats[top_blob_index].ss = 1;
                 }
             }
             else
             {
                 std::vector<Mat> top_blobs;
                 top_blobs.resize(layer->tops.size());
-                int ret = layer->forward_opencl(queue, bottom_blobs, top_blobs);
+                int ret = layer->forward(queue, bottom_blobs, top_blobs);
                 if (ret != 0)
                     return ret;
 
@@ -921,6 +936,9 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
                     int top_blob_index = layer->tops[i];
 
                     blob_mats[top_blob_index] = top_blobs[i];
+
+                    // NOTE opencl
+                    blob_mats[top_blob_index].ss = 1;
                 }
             }
         }
@@ -944,6 +962,9 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
                     int top_blob_index = layer->tops[i];
 
                     blob_mats[top_blob_index] = bottom_top_blobs[i];
+
+                    // NOTE opencl
+                    blob_mats[top_blob_index].ss = 0;
                 }
             }
             else
@@ -960,6 +981,9 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
                     int top_blob_index = layer->tops[i];
 
                     blob_mats[top_blob_index] = top_blobs[i];
+
+                    // NOTE opencl
+                    blob_mats[top_blob_index].ss = 0;
                 }
             }
         }
@@ -980,18 +1004,6 @@ Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
 
     // NOTE opencl
     opencl_mode = false;
-
-    cl_int error;
-    queue = clCreateCommandQueue(get_gpu_context(), get_gpu_device(), 0, &error);
-    if (error != CL_SUCCESS)
-    {
-        fprintf(stderr, "clCreateCommandQueue failed\n");
-    }
-}
-
-Extractor::~Extractor()
-{
-    clReleaseCommandQueue(queue);
 }
 
 void Extractor::set_light_mode(bool enable)
@@ -1080,6 +1092,9 @@ int Extractor::input(const char* blob_name, const Mat& in)
 
     blob_mats[blob_index] = in;
 
+    // NOTE opencl
+    blob_mats[blob_index].sync_to_gpu(queue);
+
     return 0;
 }
 
@@ -1107,7 +1122,14 @@ int Extractor::extract(const char* blob_name, Mat& feat)
         }
 #endif
 
+        if (opencl_mode)
+        {
+        ret = net->forward_layer(layer_index, blob_mats, lightmode, queue, opencl_mode);
+        }
+        else
+        {
         ret = net->forward_layer(layer_index, blob_mats, lightmode);
+        }
 
 #ifdef _OPENMP
         if (num_threads)
@@ -1117,6 +1139,9 @@ int Extractor::extract(const char* blob_name, Mat& feat)
         }
 #endif
     }
+
+    // NOTE opencl
+    blob_mats[blob_index].sync_to_cpu(queue);
 
     feat = blob_mats[blob_index];
 

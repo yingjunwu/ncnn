@@ -22,6 +22,7 @@ Layer::Layer()
 {
     one_blob_only = false;
     support_inplace = false;
+    support_opencl = false;
 }
 
 Layer::~Layer()
@@ -76,22 +77,22 @@ int Layer::forward_inplace(Mat& /*bottom_top_blob*/) const
     return -1;
 }
 
-int Layer::forward_opencl(cl_command_queue /*queue*/, const std::vector<Mat>& /*bottom_blobs*/, std::vector<Mat>& /*top_blobs*/) const
+int Layer::forward(Queue& /*queue*/, const std::vector<Mat>& /*bottom_blobs*/, std::vector<Mat>& /*top_blobs*/) const
 {
     return -1;
 }
 
-int Layer::forward_opencl(cl_command_queue /*queue*/, const Mat& /*bottom_blob*/, Mat& /*top_blob*/) const
+int Layer::forward(Queue& /*queue*/, const Mat& /*bottom_blob*/, Mat& /*top_blob*/) const
 {
     return -1;
 }
 
-int Layer::forward_opencl_inplace(cl_command_queue /*queue*/, std::vector<Mat>& /*bottom_top_blobs*/) const
+int Layer::forward_inplace(Queue& /*queue*/, std::vector<Mat>& /*bottom_top_blobs*/) const
 {
     return -1;
 }
 
-int Layer::forward_opencl_inplace(cl_command_queue /*queue*/, Mat& /*bottom_top_blob*/) const
+int Layer::forward_inplace(Queue& /*queue*/, Mat& /*bottom_top_blob*/) const
 {
     return -1;
 }
