@@ -375,6 +375,14 @@ int Net::load_model(FILE* fp)
             ret = -1;
             break;
         }
+
+        int fret = layer->finalize();
+        if (fret != 0)
+        {
+            fprintf(stderr, "layer finalize %d failed\n", (int)i);
+            ret = -1;
+            break;
+        }
     }
 
     return ret;
@@ -524,7 +532,14 @@ int Net::load_model(const unsigned char* _mem)
         int lret = layer->load_model(mb);
         if (lret != 0)
         {
-            fprintf(stderr, "layer load_model failed\n");
+            fprintf(stderr, "layer load_model %d failed\n", (int)i);
+            return -1;
+        }
+
+        int fret = layer->finalize();
+        if (fret != 0)
+        {
+            fprintf(stderr, "layer finalize %d failed\n", (int)i);
             return -1;
         }
     }

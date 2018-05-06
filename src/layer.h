@@ -42,6 +42,10 @@ public:
     // return 0 if success
     virtual int load_model(const ModelBin& mb);
 
+    // extra post-load process
+    // return 0 if success
+    virtual int finalize();
+
 public:
     // one input and one output blob
     bool one_blob_only;

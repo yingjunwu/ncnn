@@ -24,9 +24,7 @@ typedef void (*conv_func)(const Mat&, Mat&, const Mat&, const Mat&);
 class Convolution_arm : public Convolution
 {
 public:
-    virtual int load_param(const ParamDict& pd);
-
-    virtual int load_model(const ModelBin& mb);
+    virtual int finalize();
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
     virtual int forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv_func conv) const;

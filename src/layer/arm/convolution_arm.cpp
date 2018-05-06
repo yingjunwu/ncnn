@@ -25,12 +25,8 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Convolution_arm)
 
-int Convolution_arm::load_param(const ParamDict& pd)
+int Convolution_arm::finalize()
 {
-    int ret = Convolution::load_param(pd);
-    if (ret != 0)
-        return ret;
-
     use_winograd3x3 = false;
 
     if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -40,15 +36,6 @@ int Convolution_arm::load_param(const ParamDict& pd)
         if (num_input >= 16 && num_output >= 16)
             use_winograd3x3 = true;
     }
-
-    return 0;
-}
-
-int Convolution_arm::load_model(const ModelBin& mb)
-{
-    int ret = Convolution::load_model(mb);
-    if (ret != 0)
-        return ret;
 
     if (use_winograd3x3)
     {
