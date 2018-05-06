@@ -16,7 +16,11 @@
 
 #include <string.h>
 
+#include "layer_final.h"
+
 namespace ncnn {
+
+#include "layer_final.cpp"
 
 Layer::Layer()
 {
@@ -101,8 +105,6 @@ int Layer::forward_inplace(Queue& /*queue*/, Mat& /*bottom_top_blob*/) const
 {
     return -1;
 }
-
-#include "layer_declaration.h"
 
 static const layer_registry_entry layer_registry[] =
 {

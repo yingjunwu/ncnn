@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Deconvolution_arm : public Deconvolution
+class Deconvolution_arm : virtual public Deconvolution
 {
 public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;

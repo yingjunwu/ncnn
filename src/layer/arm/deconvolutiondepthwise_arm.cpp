@@ -22,8 +22,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(DeconvolutionDepthWise_arm)
-
 int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
     // convolv with NxN kernel

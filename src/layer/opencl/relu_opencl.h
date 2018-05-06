@@ -19,12 +19,12 @@
 
 namespace ncnn {
 
-class ReLU_opencl : public ReLU
+class ReLU_opencl : virtual public ReLU
 {
 public:
     ReLU_opencl();
 
-    virtual int load_param(const ParamDict& pd);
+    virtual int finalize();
 
     virtual int forward_inplace(Queue& queue, Mat& bottom_top_blob) const;
 

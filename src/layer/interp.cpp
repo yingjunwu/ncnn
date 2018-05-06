@@ -17,8 +17,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Interp);
-
 Interp::Interp()
 {
     one_blob_only = true;

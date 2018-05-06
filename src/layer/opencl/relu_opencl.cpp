@@ -21,8 +21,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(ReLU_opencl)
-
 ReLU_opencl::ReLU_opencl()
 {
     one_blob_only = true;
@@ -32,11 +30,9 @@ ReLU_opencl::ReLU_opencl()
     relu = get_gpu_kernel("relu");
 }
 
-int ReLU_opencl::load_param(const ParamDict& pd)
+int ReLU_opencl::finalize()
 {
-    int ret = ReLU::load_param(pd);
-    if (ret != 0)
-        return ret;
+//     fprintf(stderr, "hello relu opencl finalize\n");
 
     if (slope == 0.f)
         support_opencl = true;
@@ -46,7 +42,7 @@ int ReLU_opencl::load_param(const ParamDict& pd)
 
 int ReLU_opencl::forward_inplace(Queue& queue, Mat& bottom_top_blob) const
 {
-    fprintf(stderr, "hello relu opencl\n");
+//     fprintf(stderr, "hello relu opencl\n");
 
     cl_mem cldata = bottom_top_blob.cldata;
     int size = bottom_top_blob.total();

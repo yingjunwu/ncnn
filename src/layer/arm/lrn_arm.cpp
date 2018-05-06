@@ -22,8 +22,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(LRN_arm)
-
 int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
 {
     int w = bottom_top_blob.w;

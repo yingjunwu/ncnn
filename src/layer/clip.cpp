@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Clip)
-
 Clip::Clip()
 {
     one_blob_only = true;

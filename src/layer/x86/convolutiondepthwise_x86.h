@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class ConvolutionDepthWise_x86 : public ConvolutionDepthWise
+class ConvolutionDepthWise_x86 : virtual public ConvolutionDepthWise
 {
 public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;

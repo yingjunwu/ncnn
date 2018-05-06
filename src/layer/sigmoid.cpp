@@ -17,8 +17,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Sigmoid)
-
 Sigmoid::Sigmoid()
 {
     one_blob_only = true;

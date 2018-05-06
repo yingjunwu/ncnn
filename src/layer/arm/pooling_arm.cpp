@@ -19,8 +19,6 @@ namespace ncnn {
 #include "pooling_2x2.h"
 #include "pooling_3x3.h"
 
-DEFINE_LAYER_CREATOR(Pooling_arm)
-
 int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
     // max value in NxN window

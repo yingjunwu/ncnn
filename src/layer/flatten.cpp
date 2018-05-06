@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Flatten)
-
 Flatten::Flatten()
 {
     one_blob_only = true;

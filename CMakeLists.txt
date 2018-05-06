@@ -25,6 +25,7 @@ option(NCNN_STDIO "load model from external file" ON)
 option(NCNN_STRING "plain and verbose string" ON)
 option(NCNN_OPENCV "minimal opencv structure emulation" OFF)
 option(NCNN_BENCHMARK "print benchmark information for every layer" OFF)
+option(NCNN_OPENCL "opencl support" ON)
 
 if(NCNN_OPENMP)
     find_package(OpenMP)
@@ -34,7 +35,9 @@ if(NCNN_OPENMP)
     endif()
 endif()
 
-find_package(OpenCL)
+if(NCNN_OPENCL)
+    find_package(OpenCL)
+endif()
 
 if(WIN32)
     add_definitions(-D_SCL_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE)

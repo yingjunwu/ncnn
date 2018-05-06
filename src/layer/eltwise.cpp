@@ -17,8 +17,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Eltwise)
-
 Eltwise::Eltwise()
 {
 }

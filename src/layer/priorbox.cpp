@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(PriorBox)
-
 PriorBox::PriorBox()
 {
     one_blob_only = false;

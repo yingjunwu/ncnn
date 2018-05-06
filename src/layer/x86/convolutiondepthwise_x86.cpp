@@ -24,8 +24,6 @@ namespace ncnn {
 
 #include "convolutiondepthwise_3x3.h"
 
-DEFINE_LAYER_CREATOR(ConvolutionDepthWise_x86)
-
 int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
     // convolv with NxN kernel

@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(AbsVal_arm)
-
 int AbsVal_arm::forward_inplace(Mat& bottom_top_blob) const
 {
     int w = bottom_top_blob.w;

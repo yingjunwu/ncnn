@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(DetectionOutput)
-
 DetectionOutput::DetectionOutput()
 {
     one_blob_only = false;

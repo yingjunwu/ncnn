@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Deconvolution)
-
 Deconvolution::Deconvolution()
 {
     one_blob_only = true;

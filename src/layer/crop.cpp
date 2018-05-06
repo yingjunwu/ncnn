@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Crop)
-
 Crop::Crop()
 {
 }

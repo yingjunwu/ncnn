@@ -20,8 +20,6 @@ namespace ncnn {
 #include "convolution_3x3.h"
 #include "convolution_5x5.h"
 
-DEFINE_LAYER_CREATOR(Convolution_x86)
-
 int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv_func conv) const
 {
     int w = bottom_blob.w;

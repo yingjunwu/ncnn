@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Dropout)
-
 Dropout::Dropout()
 {
     one_blob_only = true;

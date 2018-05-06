@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(PReLU_arm)
-
 int PReLU_arm::forward_inplace(Mat& bottom_top_blob) const
 {
     int dims = bottom_top_blob.dims;

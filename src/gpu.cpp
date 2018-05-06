@@ -87,13 +87,8 @@ int compile_gpu_kernel()
     cl_int error;
 
     const char bigsource[] =
-"__kernel void relu(__global float* ptr, const int size)"
-"{                                                      "
-"    const int i = get_global_id(0);                    "
-"                                                       "
-"    if (i < size)                                      "
-"        ptr[i] = max(ptr[i], 0.f);                     "
-"}                                                      ";
+#include "layer_opencl_all.cl.h"
+    ;
 
     const char* source = bigsource;
     size_t size = sizeof(bigsource);

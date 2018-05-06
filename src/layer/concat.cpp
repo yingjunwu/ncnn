@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Concat)
-
 Concat::Concat()
 {
     one_blob_only = false;

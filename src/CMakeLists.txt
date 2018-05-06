@@ -33,6 +33,8 @@ macro(ncnn_add_layer class)
 
     message("WITH_LAYER_${name} = ${WITH_LAYER_${name}}")
 
+    set(finalize_content "\n        int ret;")
+
     if(WITH_LAYER_${name})
         list(APPEND ncnn_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/layer/${name}.cpp")
 
@@ -47,34 +49,76 @@ macro(ncnn_add_layer class)
             OR (IOS AND ("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "armv7;arm64")))
             if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/layer/arm/${name}_arm.cpp")
                 list(APPEND ncnn_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/layer/arm/${name}_arm.cpp")
-                set(WITH_LAYER_${name}_arm 1)
+
+                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.h "#include \"layer/arm/${name}_arm.h\"\n")
+                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.cpp "class ${class}_final : public ${class}_arm")
+
+                set(finalize_content "${finalize_content}\n        ret = ${class}_arm::finalize();")
+                set(finalize_content "${finalize_content}\n        if (ret != 0) return ret;")
+            else()
+                # naive C layer
+                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.h "#include \"layer/${name}.h\"\n")
+                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.cpp "class ${class}_final : public ${class}")
+
+                set(finalize_content "${finalize_content}\n        ret = ${class}::finalize();")
+                set(finalize_content "${finalize_content}\n        if (ret != 0) return ret;")
             endif()
         else()
             if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/layer/x86/${name}_x86.cpp")
                 list(APPEND ncnn_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/layer/x86/${name}_x86.cpp")
-                set(WITH_LAYER_${name}_x86 1)
+
+                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.h "#include \"layer/x86/${name}_x86.h\"\n")
+                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.cpp "class ${class}_final : public ${class}_x86")
+
+                set(finalize_content "${finalize_content}\n        ret = ${class}_x86::finalize();")
+                set(finalize_content "${finalize_content}\n        if (ret != 0) return ret;")
+            else()
+                # naive C layer
+                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.h "#include \"layer/${name}.h\"\n")
+                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.cpp "class ${class}_final : public ${class}")
+
+                set(finalize_content "${finalize_content}\n        ret = ${class}::finalize();")
+                set(finalize_content "${finalize_content}\n        if (ret != 0) return ret;")
             endif()
         endif()
+
+        if(NCNN_OPENCL)
+            # NOTE opencl
+            if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/layer/opencl/${name}_opencl.cpp")
+                list(APPEND ncnn_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/layer/opencl/${name}_opencl.cpp)
+
+                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.h "#include \"layer/opencl/${name}_opencl.h\"\n")
+                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.cpp ", public ${class}_opencl")
+
+                set(finalize_content "${finalize_content}\n        ret = ${class}_opencl::finalize();")
+                set(finalize_content "${finalize_content}\n        if (ret != 0) return ret;")
+
+                # append opencl kernel source
+                file(READ ${CMAKE_CURRENT_SOURCE_DIR}/layer/opencl/${name}.cl clcontent)
+                string(REPLACE "\"" "\\\"" clcontent "${clcontent}")
+                string(REPLACE "\n" "\\n\"\n\"" clcontent "${clcontent}")
+                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_opencl_all.cl.h "\"")
+                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_opencl_all.cl.h "${clcontent}")
+                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_opencl_all.cl.h "\"\n")
+            endif()
+        endif()
+
+        file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.cpp "\n")
+        file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.cpp "{\n")
+        file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.cpp "public:\n")
+        file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.cpp "    virtual int finalize() {${finalize_content}\n")
+        file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.cpp "        return 0;\n")
+        file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.cpp "    }\n")
+        file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.cpp "};\n")
+        file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.cpp "::ncnn::Layer* ${class}_layer_creator() { return new ${class}_final; }\n")
+        file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_final.cpp "\n")
+
     endif()
 
     # generate layer_declaration and layer_registry file
     if(WITH_LAYER_${name})
-        if(WITH_LAYER_${name}_arm)
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h
-                "extern Layer* ${class}_arm_layer_creator();\n")
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h
-                "#if NCNN_STRING\n{\"${class}\",${class}_arm_layer_creator},\n#else\n{${class}_arm_layer_creator},\n#endif\n")
-        elseif(WITH_LAYER_${name}_x86)
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h
-                "extern Layer* ${class}_x86_layer_creator();\n")
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h
-                "#if NCNN_STRING\n{\"${class}\",${class}_x86_layer_creator},\n#else\n{${class}_x86_layer_creator},\n#endif\n")
-        else()
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h
-                "extern Layer* ${class}_layer_creator();\n")
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h
-                "#if NCNN_STRING\n{\"${class}\",${class}_layer_creator},\n#else\n{${class}_layer_creator},\n#endif\n")
-        endif()
+        file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h
+            "#if NCNN_STRING\n{\"${class}\",${class}_layer_creator},\n#else\n{${class}_layer_creator},\n#endif\n")
     else()
         file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h "#if NCNN_STRING\n{\"${class}\",0},\n#else\n{0},\n#endif\n")
     endif()
@@ -85,9 +129,11 @@ macro(ncnn_add_layer class)
 endmacro()
 
 # create new
-file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h)
+file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_final.h)
+file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_final.cpp)
 file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h)
 file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h)
+file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_opencl_all.cl.h)
 set(__LAYER_TYPE_ENUM_INDEX 0)
 
 # layer implementation

@@ -14,6 +14,8 @@
 
 #include "convolution_arm.h"
 
+#include <stdio.h>
+
 namespace ncnn {
 
 #include "convolution_1x1.h"
@@ -22,8 +24,6 @@ namespace ncnn {
 #include "convolution_4x4.h"
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
-
-DEFINE_LAYER_CREATOR(Convolution_arm)
 
 int Convolution_arm::finalize()
 {

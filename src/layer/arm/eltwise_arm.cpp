@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Eltwise_arm)
-
 int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
 {
     const Mat& bottom_blob = bottom_blobs[0];

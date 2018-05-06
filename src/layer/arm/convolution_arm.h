@@ -21,7 +21,7 @@ namespace ncnn {
 
 typedef void (*conv_func)(const Mat&, Mat&, const Mat&, const Mat&);
 
-class Convolution_arm : public Convolution
+class Convolution_arm : virtual public Convolution
 {
 public:
     virtual int finalize();

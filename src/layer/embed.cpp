@@ -17,8 +17,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Embed)
-
 Embed::Embed()
 {
     one_blob_only = true;

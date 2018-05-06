@@ -19,8 +19,6 @@ namespace ncnn {
 #include "deconvolution_4x4.h"
 #include "deconvolution_3x3.h"
 
-DEFINE_LAYER_CREATOR(Deconvolution_arm)
-
 int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
     // deconvolv with NxN kernel

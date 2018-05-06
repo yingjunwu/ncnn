@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(InnerProduct_arm)
-
 int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
     int w = bottom_blob.w;

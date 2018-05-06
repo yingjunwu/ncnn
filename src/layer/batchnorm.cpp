@@ -17,8 +17,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(BatchNorm)
-
 BatchNorm::BatchNorm()
 {
     one_blob_only = true;

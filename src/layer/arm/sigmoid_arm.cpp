@@ -23,8 +23,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Sigmoid_arm)
-
 int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob) const
 {
     int w = bottom_top_blob.w;
