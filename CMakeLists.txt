@@ -48,10 +48,14 @@ else()
 
         add_definitions(-ffast-math)
     endif()
-    # add_definitions(-march=native)
+    add_definitions(-march=native)
 
     # add_definitions(-flto)
 
+    add_definitions(-mfpu=neon)
+    add_definitions(-mfloat-abi=hard)
+    add_definitions(-D__ARM_NEON)
+    add_definitions(-D__ANDRIOD__)
     add_definitions(-fvisibility=hidden -fvisibility-inlines-hidden)
 endif()
 
@@ -67,8 +71,8 @@ endif()
 
 ##############################################
 
-# add_subdirectory(examples)
-# add_subdirectory(benchmark)
+#add_subdirectory(examples)
+add_subdirectory(benchmark)
 add_subdirectory(src)
 if(NOT ANDROID AND NOT IOS)
 add_subdirectory(tools)
